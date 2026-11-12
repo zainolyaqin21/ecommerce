@@ -24,3 +24,4 @@ export const userRoutes = new Elysia({ prefix: "/api/users" }).get(
     },
   }
 );
+

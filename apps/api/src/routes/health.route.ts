@@ -13,3 +13,4 @@ export const healthRoutes = new Elysia({ prefix: "/health" }).get(
     },
   }
 );
+
