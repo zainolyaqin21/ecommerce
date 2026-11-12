@@ -1,9 +1,20 @@
 <script lang="ts">
+  import Navbar from "$lib/components/Navbar.svelte";
+  import { authState } from "$lib/state/auth.svelte";
+  import { onMount } from "svelte";
+
   let { children } = $props();
+
+  onMount(() => {
+    authState.checkSession();
+  });
 </script>
 
 <div class="layout">
-  {@render children()}
+  <Navbar />
+  <main class="main-content">
+    {@render children()}
+  </main>
 </div>
 
 <style>
@@ -11,8 +22,14 @@
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #0f172a;
-    color: #f8fafc;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  :global(*),
+  :global(*::before),
+  :global(*::after) {
+    box-sizing: border-box;
   }
 
   .layout {
@@ -20,5 +37,10 @@
     display: flex;
     flex-direction: column;
   }
-</style>
 
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+</style>
