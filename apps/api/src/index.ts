@@ -17,6 +17,7 @@ export const app = new Elysia()
         },
         tags: [
           { name: "System", description: "Health & System diagnostic endpoints" },
+          { name: "Auth", description: "User Authentication & Session management" },
           { name: "Users", description: "User management endpoints" },
         ],
       },
