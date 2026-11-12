@@ -6,7 +6,12 @@ import { appRoutes } from "./routes";
 const port = Number(process.env.PORT) || 3001;
 
 export const app = new Elysia()
-  .use(cors())
+  .use(
+    cors({
+      credentials: true,
+      origin: ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"],
+    })
+  )
   .use(
     swagger({
       documentation: {
@@ -39,6 +44,8 @@ export const app = new Elysia()
   )
   .use(appRoutes)
   .listen(port);
+
+export type App = typeof app;
 
 console.log(`🦊 Elysia is running at http://${app.server?.hostname || "localhost"}:${app.server?.port || port}`);
 console.log(`📚 Swagger documentation at http://localhost:${port}/swagger`);

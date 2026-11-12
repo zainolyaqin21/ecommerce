@@ -17,6 +17,9 @@
     "svelte-check": "^4.1.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
+  },
+  "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
+    "api": "workspace:*"
   }
 }
-
