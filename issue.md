@@ -1,70 +1,49 @@
-# Issue: Inisialisasi Struktur Project & Setup Arsitektur Monorepo
+# Issue: Refactor & Best Practice Implementation dari Review PR #4
 
 ## 1. Deskripsi Singkat
-Buat struktur dasar project full-stack untuk e-commerce berbasis monorepo menggunakan **Bun Workspace**, memisahkan aplikasi Frontend, Backend, dan konfigurasi Database (ORM) agar modular dan mudah dikembangkan lebih lanjut.
+Setelah melakukan review mendalam pada implementasi modul autentikasi dan session management di PR #4, ditemukan beberapa poin optimasi arsitektur, keamanan (security hardening), dan konsistensi tipe TypeScript. Issue ini merangkum temuan debugging, pembaruan, serta file-file yang dipulihkan (*restored*) dalam working tree.
 
 ---
 
-## 2. Tech Stack
-- **Runtime & Package Manager:** Bun (Workspaces enabled)
-- **Frontend:** Svelte (SvelteKit)
-- **Backend:** Elysia.js
-- **Database:** MySQL
-- **ORM:** Drizzle ORM (`drizzle-kit`, `mysql2`)
+## 2. Catatan File yang Di-restore / Diperbaiki (Restoration Log)
+Saat proses sinkronisasi dan checkout branch, file-file berikut dipulihkan ke working directory untuk memastikan keutuhan struktur arsitektur:
+1. `apps/api/src/routes/health.route.ts` - Rute health check status server & DB connection.
+2. `apps/api/src/routes/user.route.ts` - Rute endpoint data users.
+3. `apps/api/src/routes/index.ts` - Root router penggabung (`healthRoutes`, `userRoutes`, `authRoutes`).
+4. `apps/api/src/services/health.service.ts` - Service layer diagnosa koneksi MySQL via Drizzle ORM.
+5. `apps/api/src/services/user.service.ts` - Service layer query data users.
+6. `apps/api/src/services/index.ts` - Barrel export untuk seluruh service.
+7. `packages/db/src/schema/sessions.ts` - Skema Drizzle tabel `sessions` dengan relasi cascade ke `users`.
+8. `packages/db/src/schema/users.ts` - Skema Drizzle tabel `users` dengan kolom enum `role` (`admin`, `customer`).
+9. `packages/db/src/schema/index.ts` - Export skema database.
+10. `packages/db/tsconfig.json` - Penyesuaian `rootDir: "."` agar mencakup `drizzle.config.ts`.
+11. `apps/api/tsconfig.json` - Standarisasi `"types": ["bun"]` sesuai rilis Bun modern.
 
 ---
 
-## 3. Rencana Struktur Direktori (High-Level)
+## 3. Poin Pembaruan & Debugging Best Practices
 
-```text
-eccomerce/
-├── apps/
-│   ├── web/               # Frontend: SvelteKit app
-│   └── api/               # Backend: Elysia app
-├── packages/
-│   └── db/                # Shared Database layer: Drizzle schemas, migrations, client
-├── .env.example           # Shared / global environment variable template
-├── package.json           # Root workspace config & unified scripts
-├── tsconfig.json          # Base TypeScript config
-└── README.md
-```
+### A. Keamanan & Proteksi Endpoint (Security Hardening)
+- [x] **Session Guard pada User Route (`apps/api/src/routes/user.route.ts`)**:
+  - Endpoint `GET /api/users` sebelumnya bersifat publik tanpa proteksi.
+  - Ditambahkan validasi session token aktif (baik via Cookie `sessionId` maupun header `Authorization: Bearer <token>`). Akses tanpa session valid mengembalikan `401 Unauthorized`.
+- [x] **Pencegahan Data Leakage di AuthService (`apps/api/src/services/auth.service.ts`)**:
+  - Query login diubah menjadi *selective projection* (hanya memilih `id`, `name`, `email`, `password`, `role`), bukan `select()` wildcard.
+  - Nilai hash password di-protect agar tidak pernah ikut dikembalikan pada objek response.
+  - Sanitasi email dengan normalisasi `.trim().toLowerCase()`.
+  - Normalisasi nama user dengan `.trim()`.
 
----
+### B. Konsistensi Tipe Data & Serialisasi JSON
+- [x] **BigInt to Number Conversion**:
+  - Drizzle ORM MySQL mengembalikan `insertId` dan kolom ID tabel bertipe `bigint` / unsigned bigint.
+  - Dikonversi eksplisit ke `Number(...)` agar aman diserialisasi ke JSON tanpa memicu runtime error.
 
-## 4. Tahapan Implementasi (Milestones)
-
-### Milestone 1: Workspace & Root Setup
-- [ ] Inisialisasi root repository dengan `bun init`.
-- [ ] Konfigurasi `package.json` root dengan konfigurasi workspace (`apps/*`, `packages/*`).
-- [ ] Buat file `.gitignore` standar.
-- [ ] Buat file `.env.example`.
-- [ ] Siapkan root scripts (`dev`, `build`, `lint`).
-
-### Milestone 2: Setup Database & Drizzle ORM (`packages/db`)
-- [ ] Pasang dependensi: `drizzle-orm`, `mysql2`, dan `drizzle-kit`.
-- [ ] Buat koneksi database MySQL menggunakan driver pooling.
-- [ ] Buat konfigurasi `drizzle.config.ts`.
-- [ ] Buat skema awal (tabel `users`).
-- [ ] Siapkan script migrasi dan introspeksi database (`db:generate`, `db:push`, `db:migrate`).
-
-### Milestone 3: Setup Backend (`apps/api`)
-- [ ] Inisialisasi project Elysia.js dengan TypeScript.
-- [ ] Pasang plugin esensial Elysia: `@elysiajs/cors`, `@elysiajs/swagger`.
-- [ ] Hubungkan instance Drizzle ORM ke dalam context Elysia.
-- [ ] Buat endpoint dasar: `GET /health`.
-
-### Milestone 4: Setup Frontend (`apps/web`)
-- [ ] Inisialisasi project SvelteKit dengan TypeScript.
-- [ ] Bersihkan boilerplate default.
-- [ ] Konfigurasi API fetch helper / environment variable (`PUBLIC_API_URL`).
-- [ ] Buat halaman pengujian status backend di `routes/+page.svelte`.
+### C. Dokumentasi API (Swagger / OpenAPI)
+- [x] **Swagger Tag Registration (`apps/api/src/index.ts`)**:
+  - Mendaftarkan tag `Auth` (`User Authentication & Session management`) pada konfigurasi Swagger documentation.
 
 ---
 
-## 5. Kriteria Penerimaan (Acceptance Criteria)
-1. Perintah `bun install` berhasil di root.
-2. Perintah `bun run dev --filter api` menjalankan Elysia + Swagger di `/swagger`.
-3. Drizzle ORM terkonfigurasi untuk MySQL.
-4. Perintah `bun run dev --filter web` menjalankan SvelteKit.
-5. Perintah `bun run dev` di root menjalankan frontend dan backend secara paralel.
-
+## 4. Kriteria Pengujian (Verification)
+- [x] `bun x tsc --noEmit` sukses pada `apps/api` dan `packages/db`.
+- [x] `bun run build` sukses pada seluruh workspace (`api` & `web`).
