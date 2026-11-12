@@ -1,0 +1,22 @@
+{
+  "name": "ecommerce-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter \"*\" dev",
+    "dev:api": "bun --filter api dev",
+    "dev:web": "bun --filter web dev",
+    "build": "bun --filter \"*\" build",
+    "db:generate": "bun --filter @ecommerce/db db:generate",
+    "db:push": "bun --filter @ecommerce/db db:push",
+    "db:studio": "bun --filter @ecommerce/db db:studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
+
