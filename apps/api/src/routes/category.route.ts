@@ -109,7 +109,7 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
     },
     {
       params: t.Object({
-        id: t.Numeric({ description: "Category ID" }),
+        id: t.String({ pattern: "^[0-9]+$", description: "Category ID" }),
       }),
       body: t.Object({
         name: t.Optional(t.String({ minLength: 2, description: "Category name" })),
@@ -154,7 +154,7 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
     },
     {
       params: t.Object({
-        id: t.Numeric({ description: "Category ID" }),
+        id: t.String({ pattern: "^[0-9]+$", description: "Category ID" }),
       }),
       detail: {
         tags: ["Categories"],

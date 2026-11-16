@@ -132,7 +132,7 @@ export const productRoutes = new Elysia({ prefix: "/products" })
     },
     {
       params: t.Object({
-        id: t.Numeric({ description: "Product numeric ID" }),
+        id: t.String({ pattern: "^[0-9]+$", description: "Product numeric ID" }),
       }),
       detail: {
         tags: ["Products"],
@@ -187,7 +187,7 @@ export const productRoutes = new Elysia({ prefix: "/products" })
     },
     {
       params: t.Object({
-        id: t.Numeric({ description: "Product ID" }),
+        id: t.String({ pattern: "^[0-9]+$", description: "Product ID" }),
       }),
       body: t.Object({
         categoryId: t.Optional(t.Numeric({ description: "Category ID" })),
@@ -237,7 +237,7 @@ export const productRoutes = new Elysia({ prefix: "/products" })
     },
     {
       params: t.Object({
-        id: t.Numeric({ description: "Product ID" }),
+        id: t.String({ pattern: "^[0-9]+$", description: "Product ID" }),
       }),
       detail: {
         tags: ["Products"],
