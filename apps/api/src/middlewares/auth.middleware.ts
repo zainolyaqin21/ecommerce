@@ -54,3 +54,4 @@ export async function requireAdmin(
     status: 200,
   };
 }
+

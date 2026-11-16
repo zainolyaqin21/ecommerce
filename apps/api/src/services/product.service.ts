@@ -1,9 +1,19 @@
-import { db, products, categories } from "@ecommerce/db";
-import { eq, like, and, desc, sql } from "drizzle-orm";
+import { db, products, categories, productVariants } from "@ecommerce/db";
+import { eq, like, and, desc } from "drizzle-orm";
 
 export interface GetProductsParams {
   categoryId?: number;
   search?: string;
+}
+
+export interface VariantInput {
+  id?: number;
+  sku: string;
+  name: string;
+  price: number;
+  stock: number;
+  attributes?: Record<string, string>;
+  imageUrl?: string;
 }
 
 export class ProductService {
@@ -46,7 +56,7 @@ export class ProductService {
   }
 
   /**
-   * Mengambil detail satu produk berdasarkan slug
+   * Mengambil detail satu produk berdasarkan slug beserta seluruh variannya
    */
   static async getProductBySlug(slug: string) {
     const [item] = await db
@@ -68,11 +78,57 @@ export class ProductService {
       .where(eq(products.slug, slug.trim().toLowerCase()))
       .limit(1);
 
-    return item || null;
+    if (!item) return null;
+
+    const variants = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, item.id));
+
+    return {
+      ...item,
+      variants,
+    };
   }
 
   /**
-   * Menambahkan produk baru (khusus admin)
+   * Mengambil detail satu produk berdasarkan ID beserta seluruh variannya (untuk admin)
+   */
+  static async getProductById(id: number) {
+    const [item] = await db
+      .select({
+        id: products.id,
+        categoryId: products.categoryId,
+        categoryName: categories.name,
+        categorySlug: categories.slug,
+        name: products.name,
+        slug: products.slug,
+        description: products.description,
+        price: products.price,
+        stock: products.stock,
+        imageUrl: products.imageUrl,
+        createdAt: products.createdAt,
+      })
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(eq(products.id, id))
+      .limit(1);
+
+    if (!item) return null;
+
+    const variants = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.productId, item.id));
+
+    return {
+      ...item,
+      variants,
+    };
+  }
+
+  /**
+   * Menambahkan produk baru beserta varian (khusus admin)
    */
   static async createProduct(data: {
     categoryId: number;
@@ -82,6 +138,7 @@ export class ProductService {
     price: number;
     stock: number;
     imageUrl?: string;
+    variants?: VariantInput[];
   }) {
     const slug = data.slug.trim().toLowerCase();
 
@@ -117,8 +174,25 @@ export class ProductService {
       imageUrl: data.imageUrl || null,
     });
 
+    const productId = Number(result.insertId);
+
+    // Simpan varian jika disediakan
+    if (data.variants && data.variants.length > 0) {
+      for (const v of data.variants) {
+        await db.insert(productVariants).values({
+          productId,
+          sku: v.sku.trim(),
+          name: v.name.trim(),
+          price: v.price,
+          stock: v.stock,
+          attributes: v.attributes || null,
+          imageUrl: v.imageUrl || null,
+        });
+      }
+    }
+
     return {
-      id: Number(result.insertId),
+      id: productId,
       categoryId: data.categoryId,
       name: data.name.trim(),
       slug,
@@ -128,7 +202,7 @@ export class ProductService {
   }
 
   /**
-   * Mengubah sebagian kolom/harga/stok produk (khusus admin)
+   * Mengubah sebagian kolom produk dan kelola varian (khusus admin)
    */
   static async updateProduct(
     id: number,
@@ -140,6 +214,7 @@ export class ProductService {
       price?: number;
       stock?: number;
       imageUrl?: string;
+      variants?: VariantInput[];
     }
   ) {
     const [existing] = await db
@@ -190,6 +265,24 @@ export class ProductService {
         ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
       })
       .where(eq(products.id, id));
+
+    // Update varian jika disertakan: hapus varian lama & insert varian baru
+    if (data.variants !== undefined) {
+      await db.delete(productVariants).where(eq(productVariants.productId, id));
+      if (data.variants.length > 0) {
+        for (const v of data.variants) {
+          await db.insert(productVariants).values({
+            productId: id,
+            sku: v.sku.trim(),
+            name: v.name.trim(),
+            price: v.price,
+            stock: v.stock,
+            attributes: v.attributes || null,
+            imageUrl: v.imageUrl || null,
+          });
+        }
+      }
+    }
 
     return {
       id,

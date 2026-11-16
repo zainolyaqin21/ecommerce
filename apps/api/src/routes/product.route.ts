@@ -2,6 +2,16 @@ import { Elysia, t } from "elysia";
 import { ProductService } from "../services/product.service";
 import { requireAdmin } from "../middlewares/auth.middleware";
 
+const variantSchema = t.Object({
+  id: t.Optional(t.Numeric()),
+  sku: t.String({ minLength: 1, description: "Unique variant SKU" }),
+  name: t.String({ minLength: 1, description: "Variant name (e.g. Red - XL)" }),
+  price: t.Numeric({ minimum: 0, description: "Variant price" }),
+  stock: t.Numeric({ minimum: 0, description: "Variant stock" }),
+  attributes: t.Optional(t.Record(t.String(), t.String())),
+  imageUrl: t.Optional(t.String()),
+});
+
 export const productRoutes = new Elysia({ prefix: "/products" })
   /**
    * GET /products
@@ -36,41 +46,8 @@ export const productRoutes = new Elysia({ prefix: "/products" })
   )
 
   /**
-   * GET /products/:slug
-   * Publik: Ambil detail satu produk berdasarkan slug
-   */
-  .get(
-    "/:slug",
-    async ({ params: { slug }, set }) => {
-      const product = await ProductService.getProductBySlug(slug);
-
-      if (!product) {
-        set.status = 404;
-        return {
-          success: false,
-          error: `Product with slug '${slug}' not found`,
-        };
-      }
-
-      return {
-        success: true,
-        data: product,
-      };
-    },
-    {
-      params: t.Object({
-        slug: t.String({ description: "Product slug" }),
-      }),
-      detail: {
-        tags: ["Products"],
-        summary: "Get single product by slug (Public)",
-      },
-    }
-  )
-
-  /**
    * POST /products
-   * Khusus Admin: Tambah produk baru
+   * Khusus Admin: Tambah produk baru beserta varian
    */
   .post(
     "",
@@ -93,6 +70,11 @@ export const productRoutes = new Elysia({ prefix: "/products" })
           price: Number(body.price),
           stock: Number(body.stock ?? 0),
           imageUrl: body.imageUrl,
+          variants: body.variants ? body.variants.map((v) => ({
+            ...v,
+            price: Number(v.price),
+            stock: Number(v.stock),
+          })) : undefined,
         });
 
         set.status = 201;
@@ -118,20 +100,52 @@ export const productRoutes = new Elysia({ prefix: "/products" })
         price: t.Numeric({ minimum: 0, description: "Product price in integer/cents" }),
         stock: t.Optional(t.Numeric({ minimum: 0, description: "Initial stock count" })),
         imageUrl: t.Optional(t.String({ description: "Product image URL" })),
+        variants: t.Optional(t.Array(variantSchema)),
       }),
       detail: {
         tags: ["Products"],
-        summary: "Create a new product (Admin only)",
+        summary: "Create a new product with optional variants (Admin only)",
       },
     }
   )
 
   /**
-   * PATCH /products/:id
-   * Khusus Admin: Ubah data/harga/stok produk
+   * GET /products/id/:id
+   */
+  .get(
+    "/id/:id",
+    async ({ params: { id }, set }) => {
+      const product = await ProductService.getProductById(Number(id));
+
+      if (!product) {
+        set.status = 404;
+        return {
+          success: false,
+          error: `Product with ID '${id}' not found`,
+        };
+      }
+
+      return {
+        success: true,
+        data: product,
+      };
+    },
+    {
+      params: t.Object({
+        id: t.Numeric({ description: "Product numeric ID" }),
+      }),
+      detail: {
+        tags: ["Products"],
+        summary: "Get single product by ID (Public/Admin)",
+      },
+    }
+  )
+
+  /**
+   * PATCH /products/id/:id
    */
   .patch(
-    "/:id",
+    "/id/:id",
     async ({ params: { id }, body, cookie: { sessionId }, headers, set }) => {
       const auth = await requireAdmin(sessionId.value, headers.authorization);
       if (!auth.isAdmin) {
@@ -151,6 +165,11 @@ export const productRoutes = new Elysia({ prefix: "/products" })
           price: body.price !== undefined ? Number(body.price) : undefined,
           stock: body.stock !== undefined ? Number(body.stock) : undefined,
           imageUrl: body.imageUrl,
+          variants: body.variants ? body.variants.map((v) => ({
+            ...v,
+            price: Number(v.price),
+            stock: Number(v.stock),
+          })) : undefined,
         });
 
         return {
@@ -178,20 +197,20 @@ export const productRoutes = new Elysia({ prefix: "/products" })
         price: t.Optional(t.Numeric({ minimum: 0, description: "Product price" })),
         stock: t.Optional(t.Numeric({ minimum: 0, description: "Stock count" })),
         imageUrl: t.Optional(t.String({ description: "Product image URL" })),
+        variants: t.Optional(t.Array(variantSchema)),
       }),
       detail: {
         tags: ["Products"],
-        summary: "Update product by ID (Admin only)",
+        summary: "Update product and variants by ID (Admin only)",
       },
     }
   )
 
   /**
-   * DELETE /products/:id
-   * Khusus Admin: Hapus produk
+   * DELETE /products/id/:id
    */
   .delete(
-    "/:id",
+    "/id/:id",
     async ({ params: { id }, cookie: { sessionId }, headers, set }) => {
       const auth = await requireAdmin(sessionId.value, headers.authorization);
       if (!auth.isAdmin) {
@@ -223,6 +242,39 @@ export const productRoutes = new Elysia({ prefix: "/products" })
       detail: {
         tags: ["Products"],
         summary: "Delete product by ID (Admin only)",
+      },
+    }
+  )
+
+  /**
+   * GET /products/slug/:slug
+   * Publik: Ambil detail satu produk berdasarkan slug (termasuk varian)
+   */
+  .get(
+    "/slug/:slug",
+    async ({ params: { slug }, set }) => {
+      const product = await ProductService.getProductBySlug(slug);
+
+      if (!product) {
+        set.status = 404;
+        return {
+          success: false,
+          error: `Product with slug '${slug}' not found`,
+        };
+      }
+
+      return {
+        success: true,
+        data: product,
+      };
+    },
+    {
+      params: t.Object({
+        slug: t.String({ description: "Product slug" }),
+      }),
+      detail: {
+        tags: ["Products"],
+        summary: "Get single product by slug (Public)",
       },
     }
   );
