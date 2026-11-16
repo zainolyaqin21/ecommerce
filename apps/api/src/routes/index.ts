@@ -4,10 +4,12 @@ import { userRoutes } from "./user.route";
 import { authRoutes } from "./auth.route";
 import { categoryRoutes } from "./category.route";
 import { productRoutes } from "./product.route";
+import { uploadRoutes } from "./upload.route";
 
 export const appRoutes = new Elysia()
   .use(healthRoutes)
   .use(userRoutes)
   .use(authRoutes)
   .use(categoryRoutes)
-  .use(productRoutes);
+  .use(productRoutes)
+  .use(uploadRoutes);

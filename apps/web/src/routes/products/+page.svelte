@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { api } from "$lib/api";
+  import { api, getImageUrl } from "$lib/api";
 
   let products = $state<any[]>([]);
   let categories = $state<any[]>([]);
@@ -120,7 +120,7 @@
         <a href="/products/{product.slug}" class="product-card">
           <div class="product-image">
             {#if product.imageUrl}
-              <img src={product.imageUrl} alt={product.name} />
+              <img src={getImageUrl(product.imageUrl)} alt={product.name} />
             {:else}
               <div class="image-placeholder">🛍️</div>
             {/if}

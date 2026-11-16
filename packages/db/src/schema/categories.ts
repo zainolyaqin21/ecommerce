@@ -1,9 +1,10 @@
-import { mysqlTable, serial, varchar, timestamp } from "drizzle-orm/mysql-core";
+import { mysqlTable, serial, varchar, text, timestamp } from "drizzle-orm/mysql-core";
 
 export const categories = mysqlTable("categories", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 255 }).notNull().unique(),
+  imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
+import { staticPlugin } from "@elysiajs/static";
 import { appRoutes } from "./routes";
 
 const port = Number(process.env.PORT) || 3001;
@@ -10,6 +11,12 @@ export const app = new Elysia()
     cors({
       credentials: true,
       origin: ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"],
+    })
+  )
+  .use(
+    staticPlugin({
+      assets: "public",
+      prefix: "/public",
     })
   )
   .use(

@@ -44,6 +44,7 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
         const newCategory = await CategoryService.createCategory({
           name: body.name,
           slug: body.slug,
+          imageUrl: body.imageUrl,
         });
 
         set.status = 201;
@@ -64,6 +65,7 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
       body: t.Object({
         name: t.String({ minLength: 2, description: "Category name" }),
         slug: t.String({ minLength: 2, description: "URL-friendly slug" }),
+        imageUrl: t.Optional(t.String({ description: "Category image URL" })),
       }),
       detail: {
         tags: ["Categories"],
@@ -92,6 +94,7 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
         const updated = await CategoryService.updateCategory(Number(id), {
           name: body.name,
           slug: body.slug,
+          imageUrl: body.imageUrl,
         });
 
         return {
@@ -114,6 +117,7 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
       body: t.Object({
         name: t.Optional(t.String({ minLength: 2, description: "Category name" })),
         slug: t.Optional(t.String({ minLength: 2, description: "URL-friendly slug" })),
+        imageUrl: t.Optional(t.String({ description: "Category image URL" })),
       }),
       detail: {
         tags: ["Categories"],

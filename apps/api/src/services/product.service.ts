@@ -198,6 +198,7 @@ export class ProductService {
       slug,
       price: data.price,
       stock: data.stock,
+      imageUrl: data.imageUrl || null,
     };
   }
 

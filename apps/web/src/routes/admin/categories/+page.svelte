@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api } from "$lib/api";
+  import { api, uploadImageFile, getImageUrl } from "$lib/api";
 
   let categories = $state<any[]>([]);
   let loading = $state(true);
@@ -12,6 +12,9 @@
   let editId = $state<number | null>(null);
   let name = $state("");
   let slug = $state("");
+  let imageUrl = $state("");
+  let selectedFile = $state<File | null>(null);
+  let imagePreview = $state<string>("");
   let submitting = $state(false);
 
   async function loadCategories() {
@@ -39,11 +42,23 @@
     }
   }
 
+  function handleFileSelect(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      selectedFile = file;
+      imagePreview = URL.createObjectURL(file);
+    }
+  }
+
   function startEdit(cat: any) {
     isEditing = true;
     editId = cat.id;
     name = cat.name;
     slug = cat.slug;
+    imageUrl = cat.imageUrl || "";
+    imagePreview = cat.imageUrl ? getImageUrl(cat.imageUrl) : "";
+    selectedFile = null;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -52,6 +67,9 @@
     editId = null;
     name = "";
     slug = "";
+    imageUrl = "";
+    selectedFile = null;
+    imagePreview = "";
   }
 
   async function handleSubmit(e: SubmitEvent) {
@@ -63,10 +81,18 @@
     successMsg = "";
 
     try {
+      let finalImageUrl = imageUrl;
+
+      // Jika ada file yang dipilih, upload terlebih dahulu
+      if (selectedFile) {
+        finalImageUrl = await uploadImageFile(selectedFile);
+      }
+
       if (isEditing && editId) {
         const res = await api.categories({ id: editId }).put({
           name: name.trim(),
           slug: slug.trim().toLowerCase(),
+          imageUrl: finalImageUrl || undefined,
         });
         if (res.error) {
           errorMsg = (res.error as any)?.value?.error || "Gagal memperbarui kategori";
@@ -79,6 +105,7 @@
         const res = await api.categories.post({
           name: name.trim(),
           slug: slug.trim().toLowerCase(),
+          imageUrl: finalImageUrl || undefined,
         });
         if (res.error) {
           errorMsg = (res.error as any)?.value?.error || "Gagal menambahkan kategori";
@@ -162,6 +189,30 @@
           />
         </div>
 
+        <div class="form-group">
+          <label for="cat-image">Gambar Kategori (Upload File)</label>
+          <input
+            id="cat-image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onchange={handleFileSelect}
+            class="input-control file-input"
+          />
+          <p class="help-text">Format: JPG, PNG, WEBP, GIF (Diverifikasi melalui Magic Bytes, Maks 5MB)</p>
+          {#if imagePreview}
+            <div class="preview-box">
+              <img src={imagePreview} alt="Preview Kategori" class="category-preview-img" />
+              <button
+                type="button"
+                class="btn-remove-img"
+                onclick={() => { selectedFile = null; imagePreview = ''; imageUrl = ''; }}
+              >
+                ✕ Hapus Gambar
+              </button>
+            </div>
+          {/if}
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" disabled={submitting}>
             {submitting ? 'Menyimpan...' : (isEditing ? 'Simpan Perubahan' : 'Tambah Kategori')}
@@ -187,6 +238,7 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th>Gambar</th>
                 <th>ID</th>
                 <th>Nama</th>
                 <th>Slug</th>
@@ -196,6 +248,13 @@
             <tbody>
               {#each categories as cat}
                 <tr>
+                  <td>
+                    {#if cat.imageUrl}
+                      <img src={getImageUrl(cat.imageUrl)} alt={cat.name} class="cat-table-thumb" />
+                    {:else}
+                      <span class="no-img">No Image</span>
+                    {/if}
+                  </td>
                   <td>#{cat.id}</td>
                   <td><strong>{cat.name}</strong></td>
                   <td><code>{cat.slug}</code></td>
@@ -396,6 +455,61 @@
 
   .btn-edit:hover {
     background: #bae6fd;
+  }
+
+  .help-text {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+  }
+
+  .file-input {
+    padding: 0.4rem;
+  }
+
+  .preview-box {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f8fafc;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+  }
+
+  .category-preview-img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 0.375rem;
+    border: 1px solid #e2e8f0;
+  }
+
+  .btn-remove-img {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+
+  .cat-table-thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 0.25rem;
+    border: 1px solid #e2e8f0;
+  }
+
+  .no-img {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
   }
 
   .btn-delete {

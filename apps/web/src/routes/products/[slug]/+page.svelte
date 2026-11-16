@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { api } from "$lib/api";
+  import { api, getImageUrl } from "$lib/api";
 
   let product = $state<any>(null);
   let variants = $state<any[]>([]);
@@ -80,7 +80,7 @@
       <div class="image-section">
         <div class="main-image">
           {#if (selectedVariant?.imageUrl || product.imageUrl)}
-            <img src={selectedVariant?.imageUrl || product.imageUrl} alt={product.name} />
+            <img src={getImageUrl(selectedVariant?.imageUrl || product.imageUrl)} alt={product.name} />
           {:else}
             <div class="image-placeholder">🛍️</div>
           {/if}

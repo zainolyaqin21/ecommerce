@@ -11,6 +11,7 @@ export class CategoryService {
         id: categories.id,
         name: categories.name,
         slug: categories.slug,
+        imageUrl: categories.imageUrl,
         createdAt: categories.createdAt,
       })
       .from(categories)
@@ -33,7 +34,7 @@ export class CategoryService {
   /**
    * Menambahkan kategori baru (validasi keunikan slug)
    */
-  static async createCategory(data: { name: string; slug: string }) {
+  static async createCategory(data: { name: string; slug: string; imageUrl?: string }) {
     const slug = data.slug.trim().toLowerCase();
     const name = data.name.trim();
 
@@ -50,19 +51,21 @@ export class CategoryService {
     const [result] = await db.insert(categories).values({
       name,
       slug,
+      imageUrl: data.imageUrl || null,
     });
 
     return {
       id: Number(result.insertId),
       name,
       slug,
+      imageUrl: data.imageUrl || null,
     };
   }
 
   /**
    * Memperbarui kategori berdasarkan ID
    */
-  static async updateCategory(id: number, data: { name?: string; slug?: string }) {
+  static async updateCategory(id: number, data: { name?: string; slug?: string; imageUrl?: string }) {
     const category = await this.getCategoryById(id);
     if (!category) {
       throw new Error(`Category with ID ${id} not found`);
@@ -87,6 +90,7 @@ export class CategoryService {
       .set({
         ...(data.name ? { name: data.name.trim() } : {}),
         ...(data.slug ? { slug: data.slug } : {}),
+        ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
       })
       .where(eq(categories.id, id));
 
@@ -94,6 +98,7 @@ export class CategoryService {
       id,
       name: data.name || category.name,
       slug: data.slug || category.slug,
+      imageUrl: data.imageUrl !== undefined ? data.imageUrl : category.imageUrl,
     };
   }
 

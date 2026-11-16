@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api } from "$lib/api";
+  import { api, getImageUrl } from "$lib/api";
 
   let products = $state<any[]>([]);
   let loading = $state(true);
@@ -88,7 +88,7 @@
               <tr>
                 <td class="col-img">
                   {#if p.imageUrl}
-                    <img src={p.imageUrl} alt={p.name} class="thumb-img" />
+                    <img src={getImageUrl(p.imageUrl)} alt={p.name} class="thumb-img" />
                   {:else}
                     <div class="thumb-placeholder">🛍️</div>
                   {/if}

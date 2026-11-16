@@ -1,4 +1,4 @@
-import { api } from "$lib/api";
+import { api, setAuthToken, getAuthToken } from "$lib/api";
 
 export interface UserProfile {
   id: number;
@@ -65,6 +65,9 @@ class AuthState {
 
       if (data?.success && data?.data?.user) {
         this.user = data.data.user as UserProfile;
+        if (data.data.sessionId) {
+          setAuthToken(data.data.sessionId);
+        }
         return { success: true };
       }
 
@@ -124,6 +127,7 @@ class AuthState {
     } catch (err) {
       console.error("Logout request error:", err);
     } finally {
+      setAuthToken(null);
       this.user = null;
       this.loading = false;
     }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api } from "$lib/api";
+  import { api, uploadImageFile, getImageUrl } from "$lib/api";
   import { goto } from "$app/navigation";
 
   let categories = $state<any[]>([]);
@@ -16,6 +16,8 @@
   let price = $state<number>(0);
   let stock = $state<number>(0);
   let imageUrl = $state("");
+  let selectedFile = $state<File | null>(null);
+  let imagePreview = $state<string>("");
 
   // Product variants
   interface VariantItem {
@@ -26,6 +28,8 @@
     color: string;
     size: string;
     imageUrl: string;
+    selectedFile?: File | null;
+    imagePreview?: string;
   }
 
   let variants = $state<VariantItem[]>([]);
@@ -38,6 +42,24 @@
       .replace(/^-+|-+$/g, "");
   }
 
+  function handleMasterFileSelect(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      selectedFile = file;
+      imagePreview = URL.createObjectURL(file);
+    }
+  }
+
+  function handleVariantFileSelect(index: number, e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      variants[index].selectedFile = file;
+      variants[index].imagePreview = URL.createObjectURL(file);
+    }
+  }
+
   function addVariant() {
     const nextIdx = variants.length + 1;
     variants.push({
@@ -48,6 +70,8 @@
       color: "",
       size: "",
       imageUrl: "",
+      selectedFile: null,
+      imagePreview: "",
     });
   }
 
@@ -82,17 +106,31 @@
     errorMsg = "";
 
     try {
-      const formattedVariants = variants.map((v) => ({
-        sku: v.sku.trim(),
-        name: v.name.trim(),
-        price: Number(v.price),
-        stock: Number(v.stock),
-        attributes: (v.color || v.size) ? {
-          ...(v.color ? { color: v.color } : {}),
-          ...(v.size ? { size: v.size } : {}),
-        } : undefined,
-        imageUrl: v.imageUrl || undefined,
-      }));
+      let finalImageUrl = imageUrl;
+      if (selectedFile) {
+        finalImageUrl = await uploadImageFile(selectedFile);
+      }
+
+      const formattedVariants = await Promise.all(
+        variants.map(async (v) => {
+          let vImageUrl = v.imageUrl;
+          if (v.selectedFile) {
+            vImageUrl = await uploadImageFile(v.selectedFile);
+          }
+
+          return {
+            sku: v.sku.trim(),
+            name: v.name.trim(),
+            price: Number(v.price),
+            stock: Number(v.stock),
+            attributes: (v.color || v.size) ? {
+              ...(v.color ? { color: v.color } : {}),
+              ...(v.size ? { size: v.size } : {}),
+            } : undefined,
+            imageUrl: vImageUrl || undefined,
+          };
+        })
+      );
 
       const res = await api.products.post({
         name: name.trim(),
@@ -101,7 +139,7 @@
         description: description || undefined,
         price: Number(price),
         stock: Number(stock),
-        imageUrl: imageUrl || undefined,
+        imageUrl: finalImageUrl || undefined,
         variants: formattedVariants.length > 0 ? formattedVariants : undefined,
       });
 
@@ -201,14 +239,27 @@
         </div>
 
         <div class="form-group col-span-2">
-          <label for="imageUrl">URL Gambar Produk</label>
+          <label for="prod-file">Upload Foto Produk (File Gambar)</label>
           <input
-            id="imageUrl"
-            type="url"
-            bind:value={imageUrl}
-            placeholder="https://example.com/image.jpg"
-            class="input-control"
+            id="prod-file"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onchange={handleMasterFileSelect}
+            class="input-control file-input"
           />
+          <p class="help-text">Format didukung: JPG, PNG, WEBP, GIF (Verifikasi Magic Bytes isi file, Maks 5MB)</p>
+          {#if imagePreview}
+            <div class="preview-box">
+              <img src={imagePreview} alt="Preview Produk" class="product-preview-img" />
+              <button
+                type="button"
+                class="btn-remove-img"
+                onclick={() => { selectedFile = null; imagePreview = ''; imageUrl = ''; }}
+              >
+                ✕ Hapus Gambar
+              </button>
+            </div>
+          {/if}
         </div>
 
         <div class="form-group col-span-2">
@@ -326,6 +377,29 @@
                     placeholder="XL"
                     class="input-control"
                   />
+                </div>
+
+                <div class="form-group col-span-2">
+                  <label for={"vimg-" + idx}>Foto Varian (Opsional)</label>
+                  <input
+                    id={"vimg-" + idx}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onchange={(e) => handleVariantFileSelect(idx, e)}
+                    class="input-control file-input"
+                  />
+                  {#if variant.imagePreview}
+                    <div class="preview-box">
+                      <img src={variant.imagePreview} alt="Preview Varian" class="product-preview-img" />
+                      <button
+                        type="button"
+                        class="btn-remove-img"
+                        onclick={() => { variant.selectedFile = null; variant.imagePreview = ''; variant.imageUrl = ''; }}
+                      >
+                        ✕ Hapus Gambar
+                      </button>
+                    </div>
+                  {/if}
                 </div>
               </div>
             </div>
@@ -519,6 +593,45 @@
 
   .btn-primary:hover:not(:disabled) {
     background: #1d4ed8;
+  }
+
+  .file-input {
+    padding: 0.4rem;
+  }
+
+  .help-text {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+  }
+
+  .preview-box {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f8fafc;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+  }
+
+  .product-preview-img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 0.375rem;
+    border: 1px solid #e2e8f0;
+  }
+
+  .btn-remove-img {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
   }
 
   .btn-outline {
