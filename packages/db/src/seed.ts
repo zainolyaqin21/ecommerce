@@ -1,4 +1,4 @@
-import { db, poolConnection, categories, products, productVariants } from "./index";
+import { db, poolConnection, categories, products, productVariants, users } from "./index";
 import { eq } from "drizzle-orm";
 
 interface CategorySeedData {
@@ -181,6 +181,27 @@ async function seed() {
   console.log("🌱 Memulai proses seeding database...");
 
   try {
+    // 0. Seed Akun Admin Default
+    const adminEmail = "budi@gmail.com";
+    const [existingAdmin] = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.email, adminEmail))
+      .limit(1);
+
+    if (existingAdmin) {
+      console.log(`ℹ️ Admin user "${adminEmail}" sudah ada (ID: ${existingAdmin.id})`);
+    } else {
+      const hashedPassword = await Bun.password.hash("123456");
+      const [insertedAdmin] = await db.insert(users).values({
+        name: "budi",
+        email: adminEmail,
+        password: hashedPassword,
+        role: "admin",
+      });
+      console.log(`✅ Admin user dibuat: "budi" (${adminEmail}) (ID: ${insertedAdmin.insertId})`);
+    }
+
     let totalCategoriesInserted = 0;
     let totalProductsInserted = 0;
 
