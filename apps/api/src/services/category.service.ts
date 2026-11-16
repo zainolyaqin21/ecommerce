@@ -60,6 +60,44 @@ export class CategoryService {
   }
 
   /**
+   * Memperbarui kategori berdasarkan ID
+   */
+  static async updateCategory(id: number, data: { name?: string; slug?: string }) {
+    const category = await this.getCategoryById(id);
+    if (!category) {
+      throw new Error(`Category with ID ${id} not found`);
+    }
+
+    if (data.slug && data.slug !== category.slug) {
+      const newSlug = data.slug.trim().toLowerCase();
+      const [existing] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.slug, newSlug))
+        .limit(1);
+
+      if (existing) {
+        throw new Error(`Category with slug '${newSlug}' already exists`);
+      }
+      data.slug = newSlug;
+    }
+
+    await db
+      .update(categories)
+      .set({
+        ...(data.name ? { name: data.name.trim() } : {}),
+        ...(data.slug ? { slug: data.slug } : {}),
+      })
+      .where(eq(categories.id, id));
+
+    return {
+      id,
+      name: data.name || category.name,
+      slug: data.slug || category.slug,
+    };
+  }
+
+  /**
    * Menghapus kategori berdasarkan ID
    */
   static async deleteCategory(id: number) {

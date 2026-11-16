@@ -9,3 +9,4 @@ export const categories = mysqlTable("categories", {
 
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
+

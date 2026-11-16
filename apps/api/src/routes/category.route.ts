@@ -73,6 +73,56 @@ export const categoryRoutes = new Elysia({ prefix: "/categories" })
   )
 
   /**
+   * PUT /categories/:id
+   * Khusus Admin: Update kategori
+   */
+  .put(
+    "/:id",
+    async ({ params: { id }, body, cookie: { sessionId }, headers, set }) => {
+      const auth = await requireAdmin(sessionId.value, headers.authorization);
+      if (!auth.isAdmin) {
+        set.status = auth.status;
+        return {
+          success: false,
+          error: auth.error,
+        };
+      }
+
+      try {
+        const updated = await CategoryService.updateCategory(Number(id), {
+          name: body.name,
+          slug: body.slug,
+        });
+
+        return {
+          success: true,
+          message: "Category updated successfully",
+          data: updated,
+        };
+      } catch (err: any) {
+        set.status = 400;
+        return {
+          success: false,
+          error: err?.message || "Failed to update category",
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.Numeric({ description: "Category ID" }),
+      }),
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 2, description: "Category name" })),
+        slug: t.Optional(t.String({ minLength: 2, description: "URL-friendly slug" })),
+      }),
+      detail: {
+        tags: ["Categories"],
+        summary: "Update category by ID (Admin only)",
+      },
+    }
+  )
+
+  /**
    * DELETE /categories/:id
    * Khusus Admin: Hapus kategori
    */
